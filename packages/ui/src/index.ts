@@ -1,0 +1,55 @@
+// ─────────────────────────────────────────────────────
+// @termui/ui — Rich Component Library
+//
+// The shadcn/ui for terminals — 16+ production-ready
+// components for building beautiful CLI apps.
+// ─────────────────────────────────────────────────────
+
+// ── Re-exports from @termui/widgets (base components) ──
+export {
+    Box,
+    Text,
+    Table,
+    List,
+    TextInput,
+    Gauge,
+    Sparkline,
+    StatusIndicator,
+    LogView,
+    ProgressBar,
+    Spinner,
+    Widget,
+} from '@termui/widgets';
+
+// ── New components ──
+export { Divider } from './Divider.js';
+export type { DividerOptions } from './Divider.js';
+
+export { Spacer } from './Spacer.js';
+
+export { Tabs } from './Tabs.js';
+export type { Tab, TabsOptions } from './Tabs.js';
+
+export { Modal } from './Modal.js';
+export type { ModalOptions } from './Modal.js';
+
+export { Select } from './Select.js';
+export type { SelectOption, SelectOptions } from './Select.js';
+
+export { MultiSelect } from './MultiSelect.js';
+export type { MultiSelectOption, MultiSelectOptions } from './MultiSelect.js';
+
+export { Tree } from './Tree.js';
+export type { TreeNode, TreeOptions } from './Tree.js';
+
+export { Toast } from './Toast.js';
+export type { ToastType, ToastMessage, ToastOptions } from './Toast.js';
+
+export { ConfirmDialog } from './ConfirmDialog.js';
+export type { ConfirmDialogOptions } from './ConfirmDialog.js';
+
+export { Form } from './Form.js';
+export type { FormField, FormOptions } from './Form.js';
+
+export { CommandPalette } from './CommandPalette.js';
+export type { Command, CommandPaletteOptions } from './CommandPalette.js';

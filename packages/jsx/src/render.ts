@@ -1,0 +1,114 @@
+// ─────────────────────────────────────────────────────
+// @termui/jsx — render() entry point
+//
+// This is the top-level API. Users call:
+//   render(<App />);
+// to mount a component tree into a terminal App.
+// ─────────────────────────────────────────────────────
+
+import { App, type KeyEvent } from '@termui/core';
+import { Box, Widget } from '@termui/widgets';
+import type { VNode, FC } from './vnode.js';
+import { reconcile, unmountAll } from './reconciler.js';
+import { setRequestRender } from './hooks.js';
+import { createElement } from './createElement.js';
+
+export interface RenderOptions {
+    /** App title shown in the title bar */
+    title?: string;
+    /** Use fullscreen mode (default: true) */
+    fullscreen?: boolean;
+    /** Exit key (default: Ctrl+C) */
+    exitKey?: string;
+}
+
+/**
+ * Render a JSX component tree into the terminal.
+ *
+ * ```tsx
+ * import { render } from '@termui/jsx';
+ *
+ * function App() {
+ *     const [count, setCount] = useState(0);
+ *     useInput((key) => { if (key === '+') setCount(c => c + 1); });
+ *     return <Text>Count: {count}</Text>;
+ * }
+ *
+ * render(<App />);
+ * ```
+ */
+export async function render(
+    element: VNode,
+    options: RenderOptions = {},
+): Promise<number> {
+    const {
+        title,
+        fullscreen = true,
+        exitKey,
+    } = options;
+
+    // Build the initial widget tree from the VNode
+    let rootWidget = reconcile(element);
+
+    // Wrap in a root container
+    const rootBox = new Box({
+        flexDirection: 'column',
+        width: '100%',
+        height: '100%',
+    });
+    rootBox.addChild(rootWidget);
+
+    // Create the App
+    const appInstance = new App(rootBox, { fullscreen });
+
+    // Set up the re-render loop
+    setRequestRender(() => {
+        // Rebuild the widget tree
+        const newRoot = reconcile(element);
+
+        // Replace root's children
+        rootBox.clearChildren();
+        rootBox.addChild(newRoot);
+
+        rootWidget = newRoot;
+
+        // Request a render cycle
+        appInstance.requestRender();
+    });
+
+    // Handle key events — dispatch to all useInput handlers
+    appInstance.events.on('key', (event: KeyEvent) => {
+        // Exit key
+        if (exitKey && event.key === exitKey) {
+            unmountAll();
+            appInstance.exit();
+            return;
+        }
+        if (event.ctrl && event.key === 'c') {
+            unmountAll();
+            appInstance.exit();
+            return;
+        }
+    });
+
+    // Mount and run
+    return appInstance.mount();
+}
+
+/**
+ * Convenience: render a functional component directly.
+ *
+ * ```tsx
+ * import { renderApp } from '@termui/jsx';
+ *
+ * renderApp(App, { title: 'My Dashboard' });
+ * ```
+ */
+export async function renderApp<P extends {}>(
+    component: FC<P>,
+    options?: RenderOptions & P,
+): Promise<number> {
+    const { title, fullscreen, exitKey, ...props } = (options ?? {}) as any;
+    const vnode = createElement(component, props);
+    return render(vnode, { title, fullscreen, exitKey });
+}

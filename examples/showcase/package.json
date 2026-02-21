@@ -1,0 +1,22 @@
+{
+    "name": "@termui/example-showcase",
+    "version": "0.1.0",
+    "private": true,
+    "type": "module",
+    "description": "TermUI Showcase — demonstrates all framework packages",
+    "scripts": {
+        "start": "npx tsx src/index.ts",
+        "build": "echo 'no build needed'"
+    },
+    "dependencies": {
+        "@termui/core": "workspace:*",
+        "@termui/widgets": "workspace:*",
+        "@termui/ui": "workspace:*",
+        "@termui/tss": "workspace:*",
+        "@termui/motion": "workspace:*",
+        "@termui/dev-server": "workspace:*"
+    },
+    "devDependencies": {
+        "tsx": "^4.19.0"
+    }
+}

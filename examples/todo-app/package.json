@@ -1,0 +1,18 @@
+{
+    "name": "@termui/example-todo",
+    "version": "0.1.0",
+    "private": true,
+    "description": "Todo app — built with @termui/quick in ~20 lines",
+    "type": "module",
+    "scripts": {
+        "start": "tsx src/index.ts",
+        "build": "echo 'no build needed'"
+    },
+    "dependencies": {
+        "@termui/quick": "workspace:*"
+    },
+    "devDependencies": {
+        "tsx": "^4.21.0",
+        "typescript": "^5.9.3"
+    }
+}

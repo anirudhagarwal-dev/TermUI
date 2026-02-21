@@ -1,0 +1,33 @@
+{
+    "name": "create-termui-app",
+    "version": "0.1.0",
+    "description": "Scaffold a new TermUI app — the create-react-app for terminals",
+    "type": "module",
+    "bin": {
+        "create-termui-app": "./dist/index.js"
+    },
+    "main": "./dist/index.js",
+    "files": [
+        "dist"
+    ],
+    "scripts": {
+        "build": "tsup",
+        "dev": "tsup --watch"
+    },
+    "dependencies": {
+        "@termui/tss": "workspace:*"
+    },
+    "devDependencies": {
+        "tsup": "^8.0.0",
+        "typescript": "^5.3.0"
+    },
+    "keywords": [
+        "terminal",
+        "tui",
+        "cli",
+        "scaffold",
+        "create-app",
+        "generator"
+    ],
+    "license": "MIT"
+}

@@ -1,0 +1,56 @@
+// ─────────────────────────────────────────────────────
+// System Monitor — built with @termui/quick + @termui/data
+//
+// ~25 lines to create a full real-time system dashboard
+// ─────────────────────────────────────────────────────
+
+import { app, row, gauge, sparkline, table, text, status } from '@termui/quick';
+import { cpu, memory, disk, processes, system, network } from '@termui/data';
+
+// Keep a rolling history for sparklines
+const cpuHistory: number[] = [];
+const memHistory: number[] = [];
+
+app('⚡ System Monitor')
+    .rows(
+        // Row 1: System info
+        row(
+            text(() => `🖥  ${system.hostname} • ${system.platform} • up ${system.uptime}`, { color: { type: 'named', name: 'cyan' }, bold: true }),
+        ),
+        // Row 2: CPU + Memory gauges
+        row(
+            gauge('CPU', () => {
+                const pct = cpu.percent;
+                cpuHistory.push(pct); if (cpuHistory.length > 40) cpuHistory.shift();
+                return pct / 100;
+            }, { color: { type: 'named', name: 'green' } }),
+            gauge('MEM', () => {
+                const pct = memory.percent;
+                memHistory.push(pct); if (memHistory.length > 40) memHistory.shift();
+                return pct / 100;
+            }, { color: { type: 'named', name: 'yellow' } }),
+            gauge('DSK', () => disk.percent / 100, { color: { type: 'named', name: 'magenta' } }),
+        ),
+        // Row 3: Sparklines (CPU + Memory trend)
+        row(
+            sparkline('CPU ▸', () => [...cpuHistory], { color: { type: 'named', name: 'green' } }),
+            sparkline('MEM ▸', () => [...memHistory], { color: { type: 'named', name: 'yellow' } }),
+        ),
+        // Row 4: Top processes table
+        table('Top Processes', () => processes.top(8).map(p => ({
+            Name: p.name,
+            PID: p.pid,
+            'CPU%': p.cpu.toFixed(1),
+            'MEM%': p.mem.toFixed(1),
+            User: p.user,
+        })), ['Name', 'PID', 'CPU%', 'MEM%', 'User']),
+        // Row 5: Network interfaces
+        row(
+            ...network.interfaces.map(iface =>
+                status(iface.name, () => true, { upColor: { type: 'named', name: 'green' } })
+            ),
+        ),
+    )
+    .keys({ q: 'quit', r: 'refresh' })
+    .refresh('1s')
+    .run();

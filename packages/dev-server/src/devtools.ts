@@ -1,0 +1,112 @@
+// ─────────────────────────────────────────────────────
+// DevTools Panel — widget tree inspector, perf metrics
+// ─────────────────────────────────────────────────────
+
+export interface WidgetNode {
+    type: string;
+    id?: string;
+    rect: { x: number; y: number; width: number; height: number };
+    style?: Record<string, unknown>;
+    children: WidgetNode[];
+}
+
+export interface PerfMetrics {
+    renderTimeMs: number;
+    widgetCount: number;
+    lastRenderAt: number;
+    fps: number;
+    memoryMB: number;
+}
+
+export class DevTools {
+    private _visible = false;
+    private _tab: 'tree' | 'styles' | 'perf' | 'events' = 'tree';
+    private _widgetTree: WidgetNode | null = null;
+    private _metrics: PerfMetrics = { renderTimeMs: 0, widgetCount: 0, lastRenderAt: 0, fps: 0, memoryMB: 0 };
+    private _eventLog: Array<{ time: number; type: string; detail: string }> = [];
+    private _maxEvents = 100;
+    private _renderTimes: number[] = [];
+
+    get visible(): boolean { return this._visible; }
+    toggle(): void { this._visible = !this._visible; }
+    show(): void { this._visible = true; }
+    hide(): void { this._visible = false; }
+
+    get activeTab(): string { return this._tab; }
+    setTab(tab: 'tree' | 'styles' | 'perf' | 'events'): void { this._tab = tab; }
+
+    /** Update widget tree snapshot */
+    updateTree(root: WidgetNode): void { this._widgetTree = root; }
+
+    /** Record a render cycle */
+    recordRender(timeMs: number, widgetCount: number): void {
+        const now = Date.now();
+        this._renderTimes.push(now);
+        // Keep last 60 render timestamps for FPS calculation
+        while (this._renderTimes.length > 60) this._renderTimes.shift();
+        const elapsed = this._renderTimes.length > 1
+            ? (this._renderTimes[this._renderTimes.length - 1] - this._renderTimes[0]) / 1000
+            : 1;
+        const fps = elapsed > 0 ? this._renderTimes.length / elapsed : 0;
+
+        this._metrics = {
+            renderTimeMs: timeMs,
+            widgetCount,
+            lastRenderAt: now,
+            fps: Math.round(fps * 10) / 10,
+            memoryMB: Math.round((process.memoryUsage?.().heapUsed ?? 0) / 1024 / 1024 * 10) / 10,
+        };
+    }
+
+    /** Log an event */
+    logEvent(type: string, detail: string): void {
+        this._eventLog.push({ time: Date.now(), type, detail });
+        while (this._eventLog.length > this._maxEvents) this._eventLog.shift();
+    }
+
+    /** Get displayable panel content (plain text for rendering) */
+    getPanel(width: number, height: number): string[] {
+        const lines: string[] = [];
+        const tabBar = `  [${this._tab === 'tree' ? '▸' : ' '}Tree]  [${this._tab === 'styles' ? '▸' : ' '}Styles]  [${this._tab === 'perf' ? '▸' : ' '}Perf]  [${this._tab === 'events' ? '▸' : ' '}Events]`;
+        lines.push('─'.repeat(width));
+        lines.push('  🔧 DevTools (F12 to close)');
+        lines.push(tabBar);
+        lines.push('─'.repeat(width));
+
+        switch (this._tab) {
+            case 'tree':
+                if (this._widgetTree) this._renderTree(this._widgetTree, 0, lines, height - 5);
+                else lines.push('  No widget tree data');
+                break;
+            case 'styles':
+                lines.push('  Style inspector — select a widget in the tree');
+                break;
+            case 'perf':
+                lines.push(`  Render: ${this._metrics.renderTimeMs.toFixed(1)}ms`);
+                lines.push(`  FPS:    ${this._metrics.fps}`);
+                lines.push(`  Widgets: ${this._metrics.widgetCount}`);
+                lines.push(`  Memory: ${this._metrics.memoryMB} MB`);
+                break;
+            case 'events':
+                const recent = this._eventLog.slice(-Math.max(0, height - 6));
+                for (const evt of recent) {
+                    const time = new Date(evt.time).toISOString().slice(11, 23);
+                    lines.push(`  ${time} [${evt.type}] ${evt.detail}`.slice(0, width));
+                }
+                if (recent.length === 0) lines.push('  No events logged yet');
+                break;
+        }
+
+        return lines.slice(0, height);
+    }
+
+    private _renderTree(node: WidgetNode, depth: number, lines: string[], maxLines: number): void {
+        if (lines.length >= maxLines) return;
+        const indent = '  '.repeat(depth + 1);
+        const rect = `(${node.rect.x},${node.rect.y} ${node.rect.width}×${node.rect.height})`;
+        lines.push(`${indent}${node.type}${node.id ? '#' + node.id : ''} ${rect}`);
+        for (const child of node.children) {
+            this._renderTree(child, depth + 1, lines, maxLines);
+        }
+    }
+}

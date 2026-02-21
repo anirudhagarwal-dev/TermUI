@@ -1,0 +1,45 @@
+{
+    "name": "@termui/dev-server",
+    "version": "0.1.0",
+    "description": "Hot-reload dev server for TermUI — watch .tsx/.tss, DevTools panel",
+    "type": "module",
+    "main": "./dist/index.cjs",
+    "module": "./dist/index.js",
+    "types": "./dist/index.d.ts",
+    "bin": {
+        "termui": "./dist/cli.js"
+    },
+    "exports": {
+        ".": {
+            "types": "./dist/index.d.ts",
+            "import": "./dist/index.js",
+            "require": "./dist/index.cjs"
+        }
+    },
+    "files": [
+        "dist"
+    ],
+    "publishConfig": {
+        "access": "public"
+    },
+    "scripts": {
+        "build": "tsup",
+        "dev": "tsup --watch"
+    },
+    "dependencies": {
+        "@termui/core": "workspace:*",
+        "@termui/tss": "workspace:*"
+    },
+    "devDependencies": {
+        "tsup": "^8.0.0",
+        "typescript": "^5.3.0"
+    },
+    "keywords": [
+        "terminal",
+        "tui",
+        "cli",
+        "dev-server",
+        "hot-reload"
+    ],
+    "license": "MIT"
+}

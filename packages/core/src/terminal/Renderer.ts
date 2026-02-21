@@ -1,0 +1,141 @@
+// ─────────────────────────────────────────────────────
+// @termui/core — Differential Renderer
+// ─────────────────────────────────────────────────────
+
+import type { Terminal } from './Terminal.js';
+import { type Cell, cellsEqual, type Screen } from './Screen.js';
+import { type ColorDepth, colorToAnsiFg, colorToAnsiBg } from '../style/Color.js';
+import { moveTo, beginSyncUpdate, endSyncUpdate, reset as ansiReset } from '../utils/ansi.js';
+
+/**
+ * Differential renderer — compares front/back screen buffers and
+ * outputs only the changed cells. Uses synchronized output (CSI 2026)
+ * for atomic, flicker-free updates.
+ */
+export class Renderer {
+    private _terminal: Terminal;
+    private _screen: Screen;
+    private _fps: number;
+    private _frameTimer: ReturnType<typeof setInterval> | null = null;
+    private _renderRequested = false;
+    private _colorDepth: ColorDepth;
+
+    constructor(terminal: Terminal, screen: Screen, fps = 30) {
+        this._terminal = terminal;
+        this._screen = screen;
+        this._fps = fps;
+        this._colorDepth = terminal.colorDepth;
+    }
+
+    /** Change the rendering frame rate cap */
+    setFPS(fps: number): void {
+        this._fps = fps;
+        if (this._frameTimer) {
+            this.stop();
+            this.start();
+        }
+    }
+
+    /** Start the render loop */
+    start(): void {
+        if (this._frameTimer) return;
+        const interval = Math.floor(1000 / this._fps);
+        this._frameTimer = setInterval(() => {
+            if (this._renderRequested) {
+                this._renderRequested = false;
+                this._flush();
+            }
+        }, interval);
+    }
+
+    /** Stop the render loop */
+    stop(): void {
+        if (this._frameTimer) {
+            clearInterval(this._frameTimer);
+            this._frameTimer = null;
+        }
+    }
+
+    /** Request a render on the next frame */
+    requestFrame(): void {
+        this._renderRequested = true;
+    }
+
+    /** Force an immediate render (bypass frame rate) */
+    renderNow(): void {
+        this._flush();
+    }
+
+    /**
+     * Full-screen clear and redraw (first render or after resize).
+     */
+    fullRender(): void {
+        this._screen.invalidate();
+        this._flush();
+    }
+
+    /**
+     * Core diff and flush: compare front vs back buffer,
+     * emit only changed cells.
+     */
+    private _flush(): void {
+        const { front, back, cols, rows } = this._screen;
+        let output = beginSyncUpdate;
+        let lastRow = -1;
+        let lastCol = -1;
+
+        for (let r = 0; r < rows; r++) {
+            for (let c = 0; c < cols; c++) {
+                const frontCell = front[r][c];
+                const backCell = back[r][c];
+
+                if (cellsEqual(frontCell, backCell)) continue;
+
+                // Skip continuation cells (second half of wide chars)
+                if (backCell.width === 0) continue;
+
+                // Move cursor only if not already at the right position
+                if (r !== lastRow || c !== lastCol) {
+                    output += moveTo(c, r);
+                }
+
+                output += this._renderCell(backCell);
+                lastRow = r;
+                lastCol = c + (backCell.width === 2 ? 2 : 1);
+            }
+        }
+
+        output += ansiReset;
+        output += endSyncUpdate;
+
+        this._terminal.write(output);
+        this._screen.swap();
+    }
+
+    /**
+     * Generate the ANSI escape sequence to render a single cell.
+     */
+    private _renderCell(cell: Cell): string {
+        let seq = '';
+
+        // Reset before applying new attributes
+        seq += ansiReset;
+
+        // Apply text decorations
+        if (cell.bold) seq += '\x1b[1m';
+        if (cell.dim) seq += '\x1b[2m';
+        if (cell.italic) seq += '\x1b[3m';
+        if (cell.underline) seq += '\x1b[4m';
+        if (cell.strikethrough) seq += '\x1b[9m';
+        if (cell.inverse) seq += '\x1b[7m';
+
+        // Apply colors
+        seq += colorToAnsiFg(cell.fg, this._colorDepth);
+        seq += colorToAnsiBg(cell.bg, this._colorDepth);
+
+        // Write the character
+        seq += cell.char || ' ';
+
+        return seq;
+    }
+}

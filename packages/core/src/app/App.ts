@@ -1,0 +1,310 @@
+// ─────────────────────────────────────────────────────
+// @termui/core — Application lifecycle manager
+// ─────────────────────────────────────────────────────
+
+import { Terminal, type TerminalOptions } from '../terminal/Terminal.js';
+import { Screen } from '../terminal/Screen.js';
+import { Renderer } from '../terminal/Renderer.js';
+import { LayerManager } from '../terminal/LayerManager.js';
+import { InputParser } from '../input/InputParser.js';
+import { FocusManager } from '../events/FocusManager.js';
+import { EventEmitter } from '../events/EventEmitter.js';
+import { computeLayout, type LayoutNode } from '../layout/LayoutEngine.js';
+import type { EventMap } from '../events/types.js';
+import { createKeyEvent } from '../events/types.js';
+import { renderFallback, shouldUseFallback } from './Fallback.js';
+
+export interface AppOptions extends TerminalOptions {
+    /** Frames per second for the render loop */
+    fps?: number;
+    /** Use alternate screen (full-screen mode). Default: true */
+    fullscreen?: boolean;
+    /** Enable mouse support. Default: false */
+    mouse?: boolean;
+    /** Force fallback (static) rendering */
+    forceFallback?: boolean;
+    /** Title to set on the terminal window */
+    title?: string;
+}
+
+/**
+ * Widget interface that App expects for the root widget.
+ * This is the minimum contract — the full Widget class in @termui/widgets extends this.
+ */
+export interface RootWidget {
+    id: string;
+    getLayoutNode(): LayoutNode;
+    syncLayout?(): void;
+    render(screen: Screen): void;
+    mount?(): void;
+    unmount?(): void;
+    /** Check if this widget needs re-rendering (dirty flag) */
+    isDirty?: boolean;
+    /** Clear the dirty flag after rendering */
+    clearDirty?(): void;
+}
+
+/**
+ * Application lifecycle manager.
+ *
+ * Manages:
+ * - Terminal setup/teardown (alt screen, raw mode, cursor, mouse)
+ * - Screen buffer and renderer initialization
+ * - Input parsing and event dispatch
+ * - Layout computation and rect sync
+ * - Render loop
+ * - Graceful shutdown
+ */
+export class App {
+    readonly terminal: Terminal;
+    readonly screen: Screen;
+    readonly renderer: Renderer;
+    readonly input: InputParser;
+    readonly focus: FocusManager;
+    readonly events: EventEmitter<EventMap>;
+    readonly layers: LayerManager;
+
+    private _rootWidget: RootWidget;
+    private _options: AppOptions;
+    private _mounted = false;
+    private _exitResolve: ((code: number) => void) | null = null;
+
+    constructor(rootWidget: RootWidget, options: AppOptions = {}) {
+        this._rootWidget = rootWidget;
+        this._options = {
+            fullscreen: true,
+            mouse: false,
+            fps: 30,
+            ...options,
+        };
+
+        this.terminal = new Terminal(options);
+        this.screen = new Screen(this.terminal.cols, this.terminal.rows);
+        this.renderer = new Renderer(this.terminal, this.screen, this._options.fps);
+        this.input = new InputParser(this.terminal.stdin);
+        this.focus = new FocusManager();
+        this.events = new EventEmitter();
+        this.layers = new LayerManager(this.terminal.cols, this.terminal.rows);
+    }
+
+    /**
+     * Start the application.
+     * Sets up the terminal, starts the render loop, and mounts the root widget.
+     * Returns a promise that resolves when exit() is called.
+     */
+    async mount(): Promise<number> {
+        if (this._mounted) return 0;
+
+        // Check if we should use fallback mode
+        if (this._options.forceFallback || shouldUseFallback()) {
+            this._renderFallback();
+            return 0;
+        }
+
+        this._mounted = true;
+
+        // Set up terminal
+        this.terminal.enterRawMode();
+        if (this._options.fullscreen) {
+            this.terminal.enterAltScreen();
+        }
+        this.terminal.hideCursor();
+
+        if (this._options.mouse) {
+            this.terminal.enableMouse();
+        }
+
+        if (this._options.title) {
+            this.terminal.write(`\x1b]0;${this._options.title}\x07`);
+        }
+
+        // Handle resize
+        this.terminal.onResize((cols, rows) => {
+            this.screen.resize(cols, rows);
+            this.screen.invalidate();
+            this.layers.resize(cols, rows);
+            this.events.emit('resize', { cols, rows });
+            this.requestRender();
+        });
+
+        // Set up input handling
+        this.input.start();
+
+        // Forward key events with bubble dispatch
+        this.input.onKey((rawEvent) => {
+            const event = createKeyEvent({
+                ...rawEvent,
+                targetId: this.focus.currentId ?? undefined,
+            });
+
+            // Phase 1: Bubble dispatch — focused widget → parent → root
+            const focusedId = this.focus.currentId;
+            if (focusedId) {
+                const chain = this._buildBubbleChain(focusedId);
+                for (const widget of chain) {
+                    widget.events.emit('key', event);
+                    if (event._propagationStopped) break;
+                }
+            }
+
+            // Phase 2: Default actions (Tab for focus cycling)
+            if (!event._defaultPrevented) {
+                if (event.key === 'tab' && !event.ctrl && !event.alt) {
+                    if (event.shift) {
+                        this.focus.focusPrev();
+                    } else {
+                        this.focus.focusNext();
+                    }
+                }
+            }
+
+            // Phase 3: App-level broadcast (always fires unless stopped)
+            if (!event._propagationStopped) {
+                this.events.emit('key', event);
+            }
+        });
+
+        // Forward mouse events
+        this.input.onMouse((event) => {
+            this.events.emit('mouse', event);
+        });
+
+        // Start render loop
+        this.renderer.start();
+
+        // Mount root widget
+        this._rootWidget.mount?.();
+        this.events.emit('mount', undefined as any);
+
+        // Initial render — invalidate front buffer to force full redraw
+        this.screen.invalidate();
+        this.requestRender();
+
+        // Block until exit() is called
+        return new Promise<number>((resolve) => {
+            this._exitResolve = resolve;
+        });
+    }
+
+    /**
+     * Stop the application and restore terminal state.
+     */
+    unmount(): void {
+        if (!this._mounted) return;
+        this._mounted = false;
+
+        this._rootWidget.unmount?.();
+        this.events.emit('unmount', undefined as any);
+
+        this.renderer.stop();
+        this.input.stop();
+        this.terminal.restore();
+        this.events.removeAll();
+    }
+
+    /**
+     * Create an overlay layer for rendering above normal widgets.
+     * @param id     Unique layer identifier (e.g. 'modal', 'select-dropdown', 'toast')
+     * @param zIndex Stacking order (higher = rendered on top). Default: 100
+     */
+    addOverlay(id: string, zIndex = 100): void {
+        this.layers.createLayer(id, zIndex);
+    }
+
+    /**
+     * Remove an overlay layer.
+     */
+    removeOverlay(id: string): void {
+        this.layers.removeLayer(id);
+    }
+
+    /**
+     * Request a re-render on the next frame.
+     */
+    requestRender(): void {
+        if (!this._mounted) return;
+
+        // Compute layout
+        const layoutRoot = this._rootWidget.getLayoutNode();
+        computeLayout(layoutRoot, this.terminal.cols, this.terminal.rows);
+
+        // Sync computed rects from layout tree back to widgets
+        this._rootWidget.syncLayout?.();
+
+        // Clear the back buffer and render widgets into it
+        this.screen.clear();
+        this._rootWidget.render(this.screen);
+
+        // Composite overlay layers on top of the base rendering
+        this.layers.composite(this.screen);
+
+        this.renderer.requestFrame();
+    }
+
+    /**
+     * Exit the app (convenience method).
+     */
+    exit(code = 0): void {
+        this.unmount();
+        if (this._exitResolve) {
+            this._exitResolve(code);
+            this._exitResolve = null;
+        } else {
+            process.exit(code);
+        }
+    }
+
+    /**
+     * Render in fallback (static) mode for non-interactive environments.
+     */
+    private _renderFallback(): void {
+        const layoutRoot = this._rootWidget.getLayoutNode();
+        computeLayout(layoutRoot, this.terminal.cols, this.terminal.rows);
+
+        this._rootWidget.syncLayout?.();
+
+        this.screen.clear();
+        this._rootWidget.render(this.screen);
+
+        const output = renderFallback(this.screen);
+        this.terminal.write(output + '\n');
+    }
+
+    /**
+     * Build the bubble chain for keyboard events.
+     * Returns an array: [focused widget, parent, grandparent, ..., root]
+     */
+    private _buildBubbleChain(widgetId: string): Array<{ events: { emit: (event: string, data: any) => void } }> {
+        const chain: Array<{ events: { emit: (event: string, data: any) => void } }> = [];
+        const widget = this._findWidgetById(this._rootWidget as any, widgetId);
+        if (!widget) return chain;
+
+        let current: any = widget;
+        while (current) {
+            if (current.events) {
+                chain.push(current);
+            }
+            current = current.parent ?? null;
+        }
+        return chain;
+    }
+
+    /**
+     * Find a widget by ID in the widget tree (DFS).
+     * Uses duck-typing to work with any object that has id/children.
+     */
+    private _findWidgetById(root: any, id: string): any | null {
+        if (root.id === id) return root;
+
+        // Check children if the widget has them
+        const children = root._children ?? root.children ?? [];
+        if (Array.isArray(children)) {
+            for (const child of children) {
+                const found = this._findWidgetById(child, id);
+                if (found) return found;
+            }
+        }
+
+        return null;
+    }
+}
