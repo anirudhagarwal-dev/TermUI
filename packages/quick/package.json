@@ -1,6 +1,6 @@
 {
     "name": "@termuijs/quick",
-    "version": "0.1.0",
+    "version": "0.1.1",
     "description": "High-level fluent API for TermUI — build any CLI app in 20-30 lines",
     "type": "module",
     "main": "./dist/index.cjs",

@@ -1,6 +1,6 @@
 {
     "name": "@termuijs/motion",
-    "version": "0.1.0",
+    "version": "0.1.1",
     "description": "Spring-physics animations for TermUI — smooth terminal transitions",
     "type": "module",
     "main": "./dist/index.cjs",

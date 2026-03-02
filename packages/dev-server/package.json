@@ -1,6 +1,6 @@
 {
     "name": "@termuijs/dev-server",
-    "version": "0.1.0",
+    "version": "0.1.1",
     "description": "Hot-reload dev server for TermUI — watch .tsx/.tss, DevTools panel",
     "type": "module",
     "main": "./dist/index.cjs",

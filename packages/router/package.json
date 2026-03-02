@@ -1,6 +1,6 @@
 {
     "name": "@termuijs/router",
-    "version": "0.1.0",
+    "version": "0.1.1",
     "description": "File-based screen router for TermUI — Next.js-style navigation for CLI apps",
     "type": "module",
     "main": "./dist/index.cjs",

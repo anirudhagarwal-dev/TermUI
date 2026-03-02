@@ -1,17 +1,16 @@
 <p align="center">
   <h1 align="center">TermUI</h1>
-  <p align="center">A TypeScript framework for building interactive terminal user interfaces.</p>
+  <p align="center">Build terminal user interfaces in TypeScript.</p>
 </p>
 
 <p align="center">
   <a href="https://www.npmjs.com/package/@termuijs/core"><img src="https://img.shields.io/npm/v/@termuijs/core.svg" alt="npm version"></a>
-  <a href="https://github.com/user/termui/blob/main/LICENSE"><img src="https://img.shields.io/badge/license-MIT-blue.svg" alt="License"></a>
-  <a href="https://www.npmjs.com/package/@termuijs/core"><img src="https://img.shields.io/npm/dm/@termuijs/core.svg" alt="Downloads"></a>
+  <a href="https://github.com/Karanjot786/TermUI/blob/main/LICENSE"><img src="https://img.shields.io/badge/license-MIT-blue.svg" alt="License"></a>
 </p>
 
 ## What is TermUI?
 
-TermUI gives you React-level component architecture for the terminal. You build CLIs with layout engines, JSX, theming, animation, and routing. No curses bindings. No C dependencies. Pure TypeScript.
+TermUI is a TypeScript framework for building terminal apps. You get a layout engine, JSX support, theming, animation, and routing. No curses. No C bindings. Pure TypeScript.
 
 ## Quick Start
 
@@ -21,8 +20,6 @@ cd my-app
 npm install
 npm run dev
 ```
-
-You get a working terminal app in 30 seconds.
 
 ## Manual Setup
 
@@ -45,87 +42,46 @@ app.start();
 
 ## Packages
 
-| Package | Description |
+| Package | What it does |
 |---------|-------------|
-| `@termuijs/core` | Rendering engine, layout, events, input parsing, screen buffer |
-| `@termuijs/widgets` | 20+ base widgets: Box, Text, Table, Gauge, Spinner, TextInput |
-| `@termuijs/ui` | High-level components: Modal, Select, Tabs, Toast, Form, CommandPalette |
-| `@termuijs/jsx` | TSX runtime with React-like hooks (useState, useEffect, useRef) |
-| `@termuijs/tss` | Terminal Style Sheets. CSS-like theming with 5 built-in themes |
-| `@termuijs/motion` | Spring-physics animations for smooth terminal transitions |
-| `@termuijs/router` | File-based screen routing. Next.js-style navigation for CLIs |
-| `@termuijs/quick` | Fluent builder API. Build any CLI app in 20-30 lines |
-| `@termuijs/data` | Real-time system data: CPU, memory, disk, processes, network |
-| `@termuijs/dev-server` | Hot-reload dev server with DevTools panel |
-| `create-termui-app` | Project scaffolding CLI |
+| [`@termuijs/core`](./packages/core) | Rendering engine, layout, events, input, screen buffer |
+| [`@termuijs/widgets`](./packages/widgets) | 20+ base widgets: Box, Text, Table, Gauge, Spinner, TextInput |
+| [`@termuijs/ui`](./packages/ui) | Modal, Select, Tabs, Toast, Form, CommandPalette |
+| [`@termuijs/jsx`](./packages/jsx) | TSX runtime with useState, useEffect, useRef |
+| [`@termuijs/tss`](./packages/tss) | Terminal Style Sheets. CSS-like theming with 5 built-in themes |
+| [`@termuijs/motion`](./packages/motion) | Spring-physics animations |
+| [`@termuijs/router`](./packages/router) | File-based screen routing |
+| [`@termuijs/quick`](./packages/quick) | Fluent builder API. Build apps in 20 lines |
+| [`@termuijs/data`](./packages/data) | Real-time system data: CPU, memory, disk, processes |
+| [`@termuijs/dev-server`](./packages/dev-server) | Hot-reload dev server |
+| [`create-termui-app`](./packages/create-termui-app) | Project scaffolding CLI |
 
 ## Architecture
 
 ```
-create-termui-app (scaffolding)
+create-termui-app
         |
-   @termuijs/quick (fluent API)
+   @termuijs/quick
         |
-   @termuijs/jsx (TSX + hooks)
+   @termuijs/jsx
         |
-   @termuijs/ui (Modal, Select, Form, Toast...)
+   @termuijs/ui
         |
-   @termuijs/widgets (Box, Text, Table, Gauge...)
+   @termuijs/widgets
         |
-   @termuijs/core (Screen, Renderer, Layout, Events, Input)
+   @termuijs/core
         |
     Node.js TTY
 ```
 
-Every layer depends only on the layer below. You choose your entry point.
-
-## Features
-
-### Layout Engine
-- Flexbox-based layout with `flexDirection`, `flexGrow`, `flexShrink`, `alignItems`, `justifyContent`
-- Percentage and fixed sizing
-- Nested containers with automatic reflow
-
-### Component System
-- 20+ built-in widgets out of the box
-- Box, Text, Table, ProgressBar, Spinner, Gauge, TextInput
-- Modal, Select, MultiSelect, Tabs, Toast, Form, Tree, CommandPalette
-
-### Rendering Pipeline
-- Double-buffered screen with diff-based rendering
-- Layer system for overlays (modals, dropdowns, toasts)
-- Clip regions to prevent overflow
-- Dirty flag system for efficient partial re-renders
-
-### Event System
-- Keyboard event bubbling (focused widget to root)
-- `stopPropagation()` and `preventDefault()` on every event
-- Focus management with Tab cycling
-- Focus traps for modal isolation
-- Focus groups for arrow-key navigation
-
-### Theming
-- Terminal Style Sheets (`.tss` files)
-- 5 built-in themes: Default, Cyberpunk, Nord, Dracula, Catppuccin
-- CSS-like syntax with selectors and variables
-
-### Animation
-- Spring-physics engine (stiffness, damping, mass)
-- Smooth transitions for any numeric property
-- 60fps rendering when terminal supports it
-
-### Developer Experience
-- `create-termui-app` scaffolding with template selection
-- Hot-reload dev server
-- TSX support with full type safety
-- DevTools panel for inspection
+Every layer depends only on the one below. Pick your entry point.
 
 ## Examples
 
-### Dashboard with Real-Time Data
+### System Dashboard
 
 ```typescript
-import { app, gauge, table, sparkline } from '@termuijs/quick';
+import { app, gauge, table } from '@termuijs/quick';
 import { cpu, memory, processes } from '@termuijs/data';
 
 app('System Monitor')
@@ -166,7 +122,7 @@ function Counter() {
 render(<Counter />);
 ```
 
-### Themed App with TSS
+### Theming with TSS
 
 ```
 // themes/cyberpunk.tss
@@ -187,64 +143,56 @@ render(<Counter />);
 }
 ```
 
-## Running Examples
+## Running the Examples
 
 ```bash
-git clone https://github.com/user/termui.git
-cd termui
+git clone https://github.com/Karanjot786/TermUI.git
+cd TermUI
 pnpm install
 pnpm run build
 
-# Run the dashboard example
 cd examples/dashboard
 npx tsx src/index.tsx
-
-# Run the todo app example
-cd examples/todo-app
-npx tsx src/index.tsx
-
-# Run the showcase
-cd examples/showcase
-npx tsx src/index.tsx
 ```
+
+Five examples are included: dashboard, jsx-dashboard, showcase, system-monitor, and todo-app.
 
 ## Project Structure
 
 ```
 packages/
-  core/              Core rendering engine and layout
-  widgets/           Base widget library (Box, Text, Table...)
-  ui/                High-level components (Modal, Select...)
+  core/              Rendering engine and layout
+  widgets/           Base widget library
+  ui/                High-level components
   jsx/               TSX runtime and hooks
   tss/               Terminal Style Sheets
   motion/            Spring animation engine
-  router/            Screen-based routing
+  router/            Screen routing
   quick/             Fluent builder API
   data/              System data providers
-  dev-server/        Hot-reload development server
-  create-termui-app/ Project scaffolding CLI
+  dev-server/        Hot-reload dev server
+  create-termui-app/ Project scaffolding
 examples/
   dashboard/         Real-time system monitor
-  jsx-dashboard/     Dashboard built with JSX
+  jsx-dashboard/     JSX-based dashboard
   showcase/          Widget gallery
-  system-monitor/    Advanced system monitor
+  system-monitor/    Advanced monitor
   todo-app/          Interactive todo list
 ```
 
 ## Requirements
 
 - Node.js 18+
-- A terminal with TTY support (most modern terminals work)
+- A terminal with TTY support
 
 ## Contributing
 
 1. Fork the repo
-2. Create your feature branch: `git checkout -b feature/my-feature`
-3. Install dependencies: `pnpm install`
-4. Build all packages: `pnpm run build`
-5. Make your changes
-6. Run tests: `pnpm test`
-7. Submit a pull request
+2. Create a branch: `git checkout -b feature/my-feature`
+3. Install: `pnpm install`
+4. Build: `pnpm run build`
+5. Test: `pnpm test`
+6. Submit a pull request
 
 ## License
 

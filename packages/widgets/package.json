@@ -1,6 +1,6 @@
 {
     "name": "@termuijs/widgets",
-    "version": "0.1.0",
+    "version": "0.1.1",
     "description": "Widget library for TermUI — 20+ interactive terminal UI components",
     "type": "module",
     "main": "./dist/index.cjs",
