@@ -14,6 +14,8 @@ export { LogView } from './display/LogView.js';
 export type { LogViewOptions } from './display/LogView.js';
 export { Tree } from './display/Tree.js';
 export type { TreeNode, TreeOptions } from './display/Tree.js';
+export { JSONView, jsonToTree } from './display/JSONView.js';
+export type { JSONViewOptions, JSONNodeData, JSONNodeType } from './display/JSONView.js';
 
 // ── Input Widgets ─────────────────────────────────────
 export { List } from './input/List.js';
