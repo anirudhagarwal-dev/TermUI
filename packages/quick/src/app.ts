@@ -157,6 +157,8 @@ export class AppBuilder {
 
         // Register focusable widgets with the focus manager
         let _focusedIdx = -1;
+        let _unsubFocus: (() => void) | undefined;
+        let _unsubBlur: (() => void) | undefined;
         if (focusableWidgets.length > 0) {
             focusableWidgets.forEach((w, i) => {
                 appInstance.focus.register({ id: `quick-${i}`, tabIndex: i, focusable: true });
@@ -166,7 +168,7 @@ export class AppBuilder {
             focusableWidgets[0].isFocused = true;
 
             // Listen for focus changes
-            appInstance.focus.on('focus', (evt) => {
+            _unsubFocus = appInstance.focus.on('focus', (evt) => {
                 const idx = parseInt(evt.targetId.replace('quick-', ''), 10);
                 if (!isNaN(idx) && idx < focusableWidgets.length) {
                     focusableWidgets.forEach(w => (w.isFocused = false));
@@ -174,7 +176,7 @@ export class AppBuilder {
                     _focusedIdx = idx;
                 }
             });
-            appInstance.focus.on('blur', (evt) => {
+            _unsubBlur = appInstance.focus.on('blur', (evt) => {
                 const idx = parseInt(evt.targetId.replace('quick-', ''), 10);
                 if (!isNaN(idx) && idx < focusableWidgets.length) {
                     focusableWidgets[idx].isFocused = false;
@@ -183,7 +185,7 @@ export class AppBuilder {
         }
 
         // ── Wire up key events: dispatch to focused widget + handle app bindings ──
-        appInstance.events.on('key', (event: KeyEvent) => {
+        const _unsubKey = appInstance.events.on('key', (event: KeyEvent) => {
             // 1. Always handle Ctrl+C — cannot be overridden by user bindings
             if (event.ctrl && event.key === 'c') {
                 appInstance.exit();
@@ -293,6 +295,9 @@ export class AppBuilder {
         const origExit = appInstance.exit.bind(appInstance);
         appInstance.exit = (code?: number) => {
             if (refreshTimer) clearInterval(refreshTimer);
+            _unsubFocus?.();
+            _unsubBlur?.();
+            _unsubKey();
             origExit(code);
         };
 
