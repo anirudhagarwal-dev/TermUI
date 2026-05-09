@@ -36,6 +36,17 @@ export type { Context } from './context.js';
 // ── Memoization ──
 export { memo } from './memo.js';
 
+// ── Focus Management ──
+export { FocusContext } from './focus-context.js';
+export type { FocusContextValue } from './focus-context.js';
+export { useFocusManager } from './hooks/useFocusManager.js';
+export type { UseFocusManagerResult } from './hooks/useFocusManager.js';
+export { useFocus } from './hooks/useFocus.js';
+export type { UseFocusOptions, UseFocusResult } from './hooks/useFocus.js';
+export { useFocusTrap } from './hooks/useFocusTrap.js';
+export { useKeyboardNavigation } from './hooks/useKeyboardNavigation.js';
+export type { KeyboardNavigationOptions, KeyboardNavigationResult } from './hooks/useKeyboardNavigation.js';
+
 // ── Render ──
 export { render, renderApp } from './render.js';
 export type { RenderOptions } from './render.js';
