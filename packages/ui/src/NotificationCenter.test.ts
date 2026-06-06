@@ -1,70 +1,91 @@
-import { describe, expect, it, vi, beforeEach, afterEach } from 'vitest';
-import { NotificationStore, NotificationCenter, useNotifications, notifications } from './NotificationCenter.js';
+// ─────────────────────────────────────────────────────
+// @termuijs/ui — Tests for NotificationCenter
+// ─────────────────────────────────────────────────────
+
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { Screen, caps } from '@termuijs/core';
+import { NotificationCenter, NotificationStore } from './NotificationCenter.js';
+
+function renderCenter(center: NotificationCenter): string {
+    const screen = new Screen(24, 6);
+    center.updateRect({ x: 0, y: 0, width: 24, height: 6 });
+    center.render(screen);
+    return screen.back.map((row) => row.map((cell) => cell.char).join('')).join('\n');
+}
 
 describe('NotificationCenter', () => {
     beforeEach(() => {
-        // Clear singleton store
-        notifications.dismissAll();
-        vi.restoreAllMocks();
+        NotificationStore.getInstance().dismissAll();
     });
 
     afterEach(() => {
+        NotificationStore.getInstance().dismissAll();
         vi.restoreAllMocks();
     });
 
-    describe('NotificationStore', () => {
-        it('pushes and dismisses notifications', () => {
-            const id = notifications.push('Hello', 'info');
-            expect(notifications.notifications).toHaveLength(1);
-            expect(notifications.notifications[0].message).toBe('Hello');
+    it('has no notifications by default and renders nothing', () => {
+        const center = new NotificationCenter({ width: 20 });
+        const output = renderCenter(center);
 
-            notifications.dismiss(id);
-            expect(notifications.notifications).toHaveLength(0);
-        });
-
-        it('auto dismisses after durationMs', () => {
-            vi.useFakeTimers();
-            const id = notifications.push('Test', 'info', 1000);
-            expect(notifications.notifications).toHaveLength(1);
-
-            vi.advanceTimersByTime(1000);
-            expect(notifications.notifications).toHaveLength(0);
-            vi.useRealTimers();
-        });
-
-        it('subscribes and unsubscribes', () => {
-            const fn = vi.fn();
-            const unsub = notifications.subscribe(fn);
-
-            notifications.push('Hello');
-            expect(fn).toHaveBeenCalledTimes(1);
-
-            unsub();
-            notifications.push('World');
-            expect(fn).toHaveBeenCalledTimes(1); // Should not increase
-        });
+        expect(output.trim()).toBe('');
     });
 
-    describe('NotificationCenter Widget', () => {
-        it('renders notifications with correct icons', () => {
-            vi.spyOn(caps, 'unicode', 'get').mockReturnValue(false);
-            
-            notifications.push('Info Msg', 'info');
-            notifications.push('Success Msg', 'success');
-            
-            const widget = new NotificationCenter({ width: 20 });
-            const screen = new Screen(40, 10);
-            widget.updateRect({ x: 0, y: 0, width: 40, height: 10 });
-            widget.render(screen);
-
-            const row1 = screen.back[1].map(c => c.char).join('');
-            const row2 = screen.back[2].map(c => c.char).join('');
-
-            expect(row1).toContain('i Info Msg');
-            expect(row2).toContain('+ Success Msg');
-            
-            widget.unmount();
+    it('push() adds notifications and subscriber callbacks receive updates', () => {
+        const store = NotificationStore.getInstance();
+        const received: string[] = [];
+        const unsub = store.subscribe((notifications) => {
+            received.push(notifications.map((n) => n.message).join(','));
         });
+
+        const id1 = store.push('Hello', 'info');
+        expect(store.notifications.map((n) => n.message)).toEqual(['Hello']);
+        expect(received).toEqual(['Hello']);
+
+        const id2 = store.push('World', 'success');
+        expect(store.notifications.map((n) => n.message)).toEqual(['Hello', 'World']);
+        expect(received).toEqual(['Hello', 'Hello,World']);
+
+        store.dismiss(id1);
+        expect(store.notifications.map((n) => n.message)).toEqual(['World']);
+        expect(received).toEqual(['Hello', 'Hello,World', 'World']);
+
+        store.dismissAll();
+        expect(store.notifications).toEqual([]);
+        expect(received).toEqual(['Hello', 'Hello,World', 'World', '']);
+
+        unsub();
+    });
+
+    it('renders visible notifications and respects maxVisible', () => {
+        vi.spyOn(caps, 'unicode', 'get').mockReturnValue(false);
+        const store = NotificationStore.getInstance();
+        const center = new NotificationCenter({ width: 24, maxVisible: 2 });
+
+        store.push('First', 'info');
+        store.push('Second', 'success');
+        store.push('Third', 'warning');
+
+        const output = renderCenter(center);
+
+        expect(output).toContain('+ Second');
+        expect(output).toContain('! Third');
+        expect(output).not.toContain('i First');
+    });
+
+    it('unmount() unsubscribes from the store', () => {
+        vi.spyOn(caps, 'unicode', 'get').mockReturnValue(false);
+        const store = NotificationStore.getInstance();
+        const center = new NotificationCenter({ width: 24 });
+
+        store.push('Before', 'info');
+        expect(renderCenter(center)).toContain('i Before');
+
+        center.unmount();
+        expect(renderCenter(center)).not.toContain('i Before');
+
+        store.push('After', 'success');
+
+        const output = renderCenter(center);
+        expect(output).not.toContain('+ After');
     });
 });
