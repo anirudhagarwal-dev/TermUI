@@ -1,9 +1,9 @@
-﻿import { mkdirSync, writeFileSync, existsSync } from 'node:fs';
+import { mkdirSync, writeFileSync, existsSync } from 'node:fs';
 import { dirname, join, resolve, sep } from 'node:path';
 import { execFileSync } from 'node:child_process';
 import { confirmPrompt } from '../prompts.js';
 
-const REGISTRY_BASE_URL = 'https://raw.githubusercontent.com/Karanjot786/TermUI/main';
+const REGISTRY_BASE_URL = process.env.TERMUI_REGISTRY_URL ?? 'https://termui.io';
 
 export interface AddCommandOptions {
   component: string;

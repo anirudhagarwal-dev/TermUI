@@ -2,7 +2,7 @@
 // create-termui-app — Interactive CLI scaffolding tool
 // ─────────────────────────────────────────────────────
 
-import { resolve, join } from 'node:path';
+import { dirname, resolve, join } from 'node:path';
 import { mkdirSync, writeFileSync, existsSync } from 'node:fs';
 import { getBuiltinThemeNames } from '@termuijs/tss';
 import { textPrompt, selectPrompt, multiSelectPrompt } from './prompts.js';
@@ -101,10 +101,7 @@ async function runProjectScaffold(args: CliArgs): Promise<void> {
 
   for (const file of files) {
     const fullPath = join(projectDir, file.path);
-    const dir = fullPath.substring(
-      0,
-      Math.max(fullPath.lastIndexOf('/'), fullPath.lastIndexOf('\\'))
-    );
+    const dir = dirname(fullPath);
 
     mkdirSync(dir, { recursive: true });
     writeFileSync(fullPath, file.content, 'utf-8');
