@@ -38,7 +38,10 @@ export { Tabs } from './Tabs.js';
 export type { Tab, TabsOptions } from './Tabs.js';
 
 export { MenuBar } from './MenuBar.js';
-export type { MenuBarOptions, MenuBarItem, MenuItem } from './MenuBar.js';
+export type { MenuBarOptions, MenuBarItem, MenuItem as MenuBarItemType } from './MenuBar.js';
+
+export { Menu } from './Menu.js';
+export type { MenuItem, MenuOptions } from './Menu.js';
 
 export { Carousel } from './Carousel.js';
 export type { CarouselOptions } from './Carousel.js';

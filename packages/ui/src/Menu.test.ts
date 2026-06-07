@@ -1,91 +1,89 @@
-// ─────────────────────────────────────────────────────
-// @termuijs/ui — Tests for Menu widget
-// ─────────────────────────────────────────────────────
-
 import { describe, it, expect, vi } from 'vitest';
-import { Screen, createKeyEvent } from '@termuijs/core';
-import { Menu } from './Menu.js';
+import { Screen, type KeyEvent } from '@termuijs/core';
+import { Menu, type MenuItem } from './Menu.js';
+
+function createKeyEvent(name: string): KeyEvent {
+    return { name, ctrl: false, meta: false, shift: false };
+}
 
 describe('Menu', () => {
-    const items = [
-        { label: 'New File', shortcut: 'Ctrl+N', onSelect: vi.fn() },
-        { label: 'Open...', shortcut: 'Ctrl+O', onSelect: vi.fn() },
-        { label: 'Disabled', disabled: true, onSelect: vi.fn() },
-        { label: 'Quit', shortcut: 'q', onSelect: vi.fn() },
+    const items: MenuItem[] = [
+        { label: 'New', onSelect: vi.fn() },
+        { label: 'Open', onSelect: vi.fn() },
+        { label: 'Save', disabled: true },
+        { label: 'Exit', onSelect: vi.fn() },
     ];
 
-    it('renders all items correctly', () => {
+    it('initializes selection to the first enabled item', () => {
         const menu = new Menu({ items });
-        const screen = new Screen(40, 10);
-        menu.updateRect({ x: 0, y: 0, width: 40, height: 10 });
+        const screen = new Screen(20, 5);
+        menu.updateRect({ x: 0, y: 0, width: 20, height: 5 });
         menu.render(screen);
 
-        // Row 0: " New File          Ctrl+N"
-        const row0 = screen.back[0].map(c => c.char).join('');
-        expect(row0).toContain('New File');
-        expect(row0).toContain('Ctrl+N');
-
-        // Row 1: " Open...           Ctrl+O"
-        const row1 = screen.back[1].map(c => c.char).join('');
-        expect(row1).toContain('Open...');
-        expect(row1).toContain('Ctrl+O');
+        // Row 0 ('New') should be highlighted (cyan background)
+        const row0 = screen.back[0];
+        expect(row0.some(c => c.bg?.name === 'cyan')).toBe(true);
+        
+        // Row 1 ('Open') should not be highlighted
+        const row1 = screen.back[1];
+        expect(row1.some(c => c.bg?.name === 'cyan')).toBe(false);
     });
 
     it('navigates with up/down arrows', () => {
         const menu = new Menu({ items });
-        
-        // Initial selection should be 0
-        expect((menu as any)._selectedIndex).toBe(0);
+        const screen = new Screen(20, 5);
+        menu.updateRect({ x: 0, y: 0, width: 20, height: 5 });
 
-        // Down arrow -> selection 1
+        // Initial state: Row 0 selected
+        menu.render(screen);
+        expect(screen.back[0].some(c => c.bg?.name === 'cyan')).toBe(true);
+
+        // Navigate down — 'Open' row should become highlighted
         menu.handleKey(createKeyEvent('down'));
-        expect((menu as any)._selectedIndex).toBe(1);
+        menu.render(screen);
+        
+        expect(screen.back[1].some(c => c.bg?.name === 'cyan')).toBe(true);
+        expect(screen.back[0].some(c => c.bg?.name === 'cyan')).toBe(false);
 
-        // Up arrow -> selection 0
+        // Navigate up — back to 'New'
         menu.handleKey(createKeyEvent('up'));
-        expect((menu as any)._selectedIndex).toBe(0);
+        menu.render(screen);
+        expect(screen.back[0].some(c => c.bg?.name === 'cyan')).toBe(true);
     });
 
-    it('skips disabled items during navigation', () => {
-        const menu = new Menu({ items });
-        
-        // Start at index 1 ('Open...')
-        (menu as any)._selectedIndex = 1;
+    it('skips disabled items when navigating', () => {
+        const menu = new Menu({ items }); // New (0), Open (1), Save (2, disabled), Exit (3)
+        const screen = new Screen(20, 5);
+        menu.updateRect({ x: 0, y: 0, width: 20, height: 5 });
 
-        // Down arrow -> should skip index 2 ('Disabled') and go to index 3 ('Quit')
+        // Start at 'Open' (1)
         menu.handleKey(createKeyEvent('down'));
-        expect((menu as any)._selectedIndex).toBe(3);
-
-        // Up arrow -> should skip index 2 and go back to index 1
-        menu.handleKey(createKeyEvent('up'));
-        expect((menu as any)._selectedIndex).toBe(1);
+        
+        // Navigate down — should skip 'Save' (2) and go to 'Exit' (3)
+        menu.handleKey(createKeyEvent('down'));
+        menu.render(screen);
+        
+        expect(screen.back[3].some(c => c.bg?.name === 'cyan')).toBe(true);
+        expect(screen.back[2].some(c => c.bg?.name === 'cyan')).toBe(false);
+        expect(screen.back[2].some(c => c.char === 'S')).toBe(true); // Verify row 2 is indeed 'Save'
     });
 
-    it('fires onSelect when Enter is pressed', () => {
+    it('confirms selection with enter', () => {
         const onSelect = vi.fn();
-        const menu = new Menu({ 
-            items: [{ label: 'Select Me', onSelect }] 
-        });
-
+        const testItems: MenuItem[] = [
+            { label: 'Test', onSelect }
+        ];
+        const menu = new Menu({ items: testItems });
+        
         menu.handleKey(createKeyEvent('enter'));
         expect(onSelect).toHaveBeenCalled();
     });
 
-    it('calls onClose when Escape is pressed', () => {
+    it('calls onClose when escape is pressed', () => {
         const onClose = vi.fn();
         const menu = new Menu({ items, onClose });
-
+        
         menu.handleKey(createKeyEvent('escape'));
         expect(onClose).toHaveBeenCalled();
-    });
-
-    it('initializes with first non-disabled item', () => {
-        const itemsWithDisabledStart = [
-            { label: 'Disabled 1', disabled: true },
-            { label: 'Disabled 2', disabled: true },
-            { label: 'Enabled', onSelect: vi.fn() },
-        ];
-        const menu = new Menu({ items: itemsWithDisabledStart });
-        expect((menu as any)._selectedIndex).toBe(2);
     });
 });

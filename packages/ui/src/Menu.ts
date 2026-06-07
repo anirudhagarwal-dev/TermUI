@@ -1,17 +1,13 @@
-// ─────────────────────────────────────────────────────
-// @termuijs/ui — Menu widget
-// ─────────────────────────────────────────────────────
-
 import { Widget } from '@termuijs/widgets';
 import {
+    type Style,
     type Screen,
     type KeyEvent,
-    type Style,
     mergeStyles,
     defaultStyle,
     styleToCellAttrs,
-    caps,
     stringWidth,
+    truncate,
 } from '@termuijs/core';
 
 export interface MenuItem {
@@ -24,46 +20,65 @@ export interface MenuItem {
 export interface MenuOptions {
     items: MenuItem[];
     onClose?: () => void;
+    style?: Partial<Style>;
 }
 
 /**
- * Menu — a vertical list of interactive items.
- *
- * Supports keyboard navigation (up/down), selection (enter), and closing (escape).
- * Displays keyboard shortcuts aligned to the right.
+ * Menu — a vertical list of interactive items supporting keyboard navigation,
+ * shortcuts, and disabled states.
  */
 export class Menu extends Widget {
     private _items: MenuItem[];
     private _selectedIndex = 0;
     private _onClose?: () => void;
-    focusable = true;
 
-    constructor(options: MenuOptions, style: Partial<Style> = {}) {
-        const height = options.items.length;
-        super(mergeStyles(defaultStyle(), { height, ...style }));
+    constructor(options: MenuOptions) {
+        super(mergeStyles(defaultStyle(), {
+            border: 'single',
+            padding: 0,
+            ...options.style
+        }));
         this._items = options.items;
         this._onClose = options.onClose;
+        this.focusable = true;
 
-        // Ensure we don't start on a disabled item
-        if (this._items[this._selectedIndex]?.disabled) {
-            this._selectNext();
+        // Initialize selection to the first enabled item
+        this._initSelection();
+    }
+
+    private _initSelection(): void {
+        for (let i = 0; i < this._items.length; i++) {
+            if (!this._items[i].disabled) {
+                this._selectedIndex = i;
+                break;
+            }
         }
     }
 
     private _selectNext(): void {
-        let n = this._selectedIndex + 1;
-        while (n < this._items.length && this._items[n].disabled) n++;
-        if (n < this._items.length) {
-            this._selectedIndex = n;
+        const start = this._selectedIndex;
+        let next = (this._selectedIndex + 1) % this._items.length;
+        
+        while (next !== start && this._items[next].disabled) {
+            next = (next + 1) % this._items.length;
+        }
+
+        if (next !== start && !this._items[next].disabled) {
+            this._selectedIndex = next;
             this.markDirty();
         }
     }
 
     private _selectPrev(): void {
-        let n = this._selectedIndex - 1;
-        while (n >= 0 && this._items[n].disabled) n--;
-        if (n >= 0) {
-            this._selectedIndex = n;
+        const start = this._selectedIndex;
+        let next = (this._selectedIndex - 1 + this._items.length) % this._items.length;
+        
+        while (next !== start && this._items[next].disabled) {
+            next = (next - 1 + this._items.length) % this._items.length;
+        }
+
+        if (next !== start && !this._items[next].disabled) {
+            this._selectedIndex = next;
             this.markDirty();
         }
     }
@@ -72,26 +87,28 @@ export class Menu extends Widget {
         const item = this._items[this._selectedIndex];
         if (item && !item.disabled) {
             item.onSelect?.();
-            this.markDirty();
+            // No markDirty — selection did not change
         }
     }
 
-    handleKey(event: KeyEvent): void {
+    handleKey(event: KeyEvent): boolean {
         switch (event.name) {
             case 'up':
                 this._selectPrev();
-                break;
+                return true;
             case 'down':
                 this._selectNext();
-                break;
+                return true;
             case 'enter':
+            case 'space':
                 this._confirm();
-                break;
+                return true;
             case 'escape':
                 this._onClose?.();
-                this.markDirty();
-                break;
+                // No markDirty — widget is being closed
+                return true;
         }
+        return false;
     }
 
     protected _renderSelf(screen: Screen): void {
@@ -99,47 +116,39 @@ export class Menu extends Widget {
         const { x, y, width, height } = rect;
         if (width <= 0 || height <= 0) return;
 
-        const baseAttrs = styleToCellAttrs(this._style);
+        const baseAttrs = styleToCellAttrs(this.style);
 
-        for (let i = 0; i < this._items.length && i < height; i++) {
+        for (let i = 0; i < this._items.length; i++) {
+            if (i >= height) break;
+
             const item = this._items[i];
             const isSelected = i === this._selectedIndex;
-            const rowY = y + i;
+            
+            // Highlight selected row
+            const rowStyle = {
+                ...baseAttrs,
+                fg: item.disabled ? { type: 'named' as const, name: 'brightBlack' as const } : baseAttrs.fg,
+                bg: isSelected ? { type: 'named' as const, name: 'cyan' as const } : baseAttrs.bg,
+                bold: isSelected,
+                dim: item.disabled,
+            };
 
-            // Determine colors
-            let fg = baseAttrs.fg;
-            let bg = baseAttrs.bg;
-            let bold = isSelected;
-            let dim = item.disabled;
+            // Clear row
+            screen.writeString(x, y + i, ' '.repeat(width), rowStyle);
 
-            if (isSelected) {
-                // Highlight selection - using a common TUI pattern: invert or specific color
-                // For simplicity, we'll use a cyan background or similar if available, 
-                // or just bold/dim as specified. Let's match Select's active color pattern.
-                fg = { type: 'named', name: 'black' };
-                bg = { type: 'named', name: 'cyan' };
-            } else if (item.disabled) {
-                fg = { type: 'named', name: 'brightBlack' };
-            }
+            // Render label
+            const label = truncate(item.label, width - 2);
+            screen.writeString(x + 1, y + i, label, rowStyle);
 
-            const rowAttrs = { ...baseAttrs, fg, bg, bold, dim };
-
-            // Fill row with background color
-            for (let col = 0; col < width; col++) {
-                screen.setCell(x + col, rowY, { char: ' ', ...rowAttrs });
-            }
-
-            // Render label (left-aligned)
-            const label = item.label;
-            screen.writeString(x + 1, rowY, label.slice(0, width - 2), rowAttrs);
-
-            // Render shortcut (right-aligned)
+            // Render shortcut if space allows
             if (item.shortcut) {
                 const shortcut = item.shortcut;
-                const sw = stringWidth(shortcut);
-                const shortcutX = x + width - sw - 1;
-                if (shortcutX > x + stringWidth(label) + 2) {
-                    screen.writeString(shortcutX, rowY, shortcut, rowAttrs);
+                const shortcutWidth = stringWidth(shortcut);
+                if (width > stringWidth(label) + shortcutWidth + 4) {
+                    screen.writeString(x + width - shortcutWidth - 1, y + i, shortcut, {
+                        ...rowStyle,
+                        fg: isSelected ? rowStyle.fg : { type: 'named', name: 'brightBlack' }
+                    });
                 }
             }
         }
