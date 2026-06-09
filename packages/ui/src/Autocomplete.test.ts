@@ -3,9 +3,8 @@
 // ─────────────────────────────────────────────────────
 
 import { describe, it, expect, vi, afterEach } from 'vitest';
-import { Screen, caps } from '@termuijs/core';
+import { Screen, caps, type KeyEvent } from '@termuijs/core';
 import { Autocomplete } from './Autocomplete.js';
-import { type KeyEvent } from '@termuijs/core';
 
 function makeKey(key: string, overrides: Partial<KeyEvent> = {}): KeyEvent {
     return {

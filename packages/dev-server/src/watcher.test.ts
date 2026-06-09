@@ -1,11 +1,11 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { FileWatcher } from './watcher.js';
-import * as fs from 'node:fs';
+import { watch, existsSync } from 'node:fs';
 import { EventEmitter } from 'node:events';
 
 vi.mock('node:fs', () => ({
     watch: vi.fn(),
-    existsSync: vi.fn()
+    existsSync: vi.fn(() => true)
 }));
 
 describe('FileWatcher', () => {
@@ -14,12 +14,11 @@ describe('FileWatcher', () => {
     beforeEach(() => {
         vi.useFakeTimers();
         mockWatcherEmitter = new EventEmitter();
-        vi.mocked(fs.watch).mockReturnValue(mockWatcherEmitter as any);
-        vi.mocked(fs.existsSync).mockReturnValue(true);
+        vi.mocked(watch).mockReturnValue(mockWatcherEmitter as any);
     });
 
     afterEach(() => {
-        vi.clearAllMocks();
+        vi.restoreAllMocks();
         vi.useRealTimers();
     });
 
@@ -198,7 +197,7 @@ describe('FileWatcher', () => {
     // ─── 7. Missing watch directory — no watcher created, no exception ────────
 
     it('skips non-existent directories without throwing', () => {
-        vi.mocked(fs.existsSync).mockReturnValue(false);
+        vi.mocked(existsSync).mockReturnValue(false);
 
         const watcher = new FileWatcher(['./does-not-exist']);
         const changeSpy = vi.fn();
@@ -206,7 +205,7 @@ describe('FileWatcher', () => {
         watcher.onChange(changeSpy);
 
         expect(() => watcher.start()).not.toThrow();
-        expect(fs.watch).not.toHaveBeenCalled();
+        expect(vi.mocked(watch)).not.toHaveBeenCalled();
     });
 
     // ─── 8. Error event forwarding ────────────────────────────────────────────
@@ -292,14 +291,14 @@ describe('FileWatcher', () => {
 
         watcher.start();
 
-        expect(fs.watch).toHaveBeenCalledTimes(dirs.length);
+        expect(vi.mocked(watch)).toHaveBeenCalledTimes(dirs.length);
     });
 
     it('handles events from multiple directories independently', () => {
         // Use separate emitters per directory
         const emitters = [new EventEmitter(), new EventEmitter(), new EventEmitter()];
         let callCount = 0;
-        vi.mocked(fs.watch).mockImplementation(() => emitters[callCount++] as any);
+        vi.mocked(watch).mockImplementation(() => emitters[callCount++] as any);
 
         const watcher = new FileWatcher(['./src', './components', './themes']);
         const changeSpy = vi.fn();
@@ -316,15 +315,41 @@ describe('FileWatcher', () => {
         expect(changeSpy).toHaveBeenCalledTimes(3);
     });
 
+    it('does not collide when different watched dirs contain the same filename', () => {
+        // Simulate two separate watchers (different directories) both reporting
+        // a change for a file with the same basename. They should produce
+        // two independent onChange events, not be coalesced by the debounce map.
+        const emitters = [new EventEmitter(), new EventEmitter()];
+        let callCount = 0;
+        vi.mocked(watch).mockImplementation(() => emitters[callCount++] as any);
+
+        const watcher = new FileWatcher(['./src', './tests']);
+        const changeSpy = vi.fn();
+
+        watcher.onChange(changeSpy);
+        watcher.start();
+
+        // Both directories emit a change for "index.ts"
+        emitters[0].emit('change', 'change', 'index.ts');
+        emitters[1].emit('change', 'change', 'index.ts');
+
+        vi.advanceTimersByTime(100);
+
+        // Expect two separate events (one per directory/file), not one.
+        expect(changeSpy).toHaveBeenCalledTimes(2);
+        const filenames = changeSpy.mock.calls.map(([c]) => c.filename);
+        expect(filenames).toEqual(['index.ts', 'index.ts']);
+    });
+
     it('skips non-existent directories but still watches valid ones', () => {
         // First dir missing, second exists
-        vi.mocked(fs.existsSync).mockImplementation((p) => String(p).includes('components'));
+        vi.mocked(existsSync).mockImplementation((p) => String(p).includes('components'));
 
         const watcher = new FileWatcher(['./src', './components']);
         watcher.start();
 
         // Only one call for the existing directory
-        expect(fs.watch).toHaveBeenCalledTimes(1);
+        expect(vi.mocked(watch)).toHaveBeenCalledTimes(1);
     });
 
     // ─── 13. Timestamp generation ─────────────────────────────────────────────

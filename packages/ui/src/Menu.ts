@@ -34,7 +34,6 @@ export class Menu extends Widget {
 
     constructor(options: MenuOptions) {
         super(mergeStyles(defaultStyle(), {
-            border: 'single',
             padding: 0,
             ...options.style
         }));
