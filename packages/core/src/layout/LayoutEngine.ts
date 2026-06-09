@@ -67,10 +67,10 @@ export function computeLayout(root: LayoutNode, containerWidth: number, containe
     root._lastContainerHeight = containerHeight;
     root.computed = { x: 0, y: 0, width: containerWidth, height: containerHeight };
     layoutNode(root, containerWidth, containerHeight);
+
     root.computed.width = containerWidth;
     root.computed.height = containerHeight;
 }
-
 export function invalidateLayout(node: LayoutNode): void {
     node._dirty = true;
     for (const child of node.children) {
