@@ -1,9 +1,15 @@
 import { describe, it, expect, vi } from 'vitest';
-import { Screen, type KeyEvent } from '@termuijs/core';
+import { Screen, createKeyEvent } from '@termuijs/core';
 import { Menu, type MenuItem } from './Menu.js';
 
-function createKeyEvent(name: string): KeyEvent {
-    return { name, ctrl: false, meta: false, shift: false };
+function mockKeyEvent(key: string) {
+    return createKeyEvent({
+        key,
+        raw: Buffer.from([]),
+        ctrl: false,
+        alt: false,
+        shift: false
+    });
 }
 
 describe('Menu', () => {
@@ -39,14 +45,14 @@ describe('Menu', () => {
         expect(screen.back[0].some(c => c.bg?.name === 'cyan')).toBe(true);
 
         // Navigate down — 'Open' row should become highlighted
-        menu.handleKey(createKeyEvent('down'));
+        menu.handleKey(mockKeyEvent('down'));
         menu.render(screen);
         
         expect(screen.back[1].some(c => c.bg?.name === 'cyan')).toBe(true);
         expect(screen.back[0].some(c => c.bg?.name === 'cyan')).toBe(false);
 
         // Navigate up — back to 'New'
-        menu.handleKey(createKeyEvent('up'));
+        menu.handleKey(mockKeyEvent('up'));
         menu.render(screen);
         expect(screen.back[0].some(c => c.bg?.name === 'cyan')).toBe(true);
     });
@@ -57,10 +63,10 @@ describe('Menu', () => {
         menu.updateRect({ x: 0, y: 0, width: 20, height: 5 });
 
         // Start at 'Open' (1)
-        menu.handleKey(createKeyEvent('down'));
+        menu.handleKey(mockKeyEvent('down'));
         
         // Navigate down — should skip 'Save' (2) and go to 'Exit' (3)
-        menu.handleKey(createKeyEvent('down'));
+        menu.handleKey(mockKeyEvent('down'));
         menu.render(screen);
         
         expect(screen.back[3].some(c => c.bg?.name === 'cyan')).toBe(true);
@@ -75,7 +81,7 @@ describe('Menu', () => {
         ];
         const menu = new Menu({ items: testItems });
         
-        menu.handleKey(createKeyEvent('enter'));
+        menu.handleKey(mockKeyEvent('enter'));
         expect(onSelect).toHaveBeenCalled();
     });
 
@@ -83,7 +89,7 @@ describe('Menu', () => {
         const onClose = vi.fn();
         const menu = new Menu({ items, onClose });
         
-        menu.handleKey(createKeyEvent('escape'));
+        menu.handleKey(mockKeyEvent('escape'));
         expect(onClose).toHaveBeenCalled();
     });
 });

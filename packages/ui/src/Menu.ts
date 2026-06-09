@@ -92,7 +92,7 @@ export class Menu extends Widget {
     }
 
     handleKey(event: KeyEvent): boolean {
-        switch (event.name) {
+        switch (event.key) {
             case 'up':
                 this._selectPrev();
                 return true;

@@ -5,11 +5,6 @@
 // components for building beautiful CLI apps.
 // ─────────────────────────────────────────────────────
 
-import { BasicAuthPrompt } from './BasicAuthPrompt.js';
-
-// ── Re-exports from @termuijs/widgets (base components) ──
-// Note: do not augment '@termuijs/widgets' here — it resolves to an untyped module.
-
 // ── Re-exports from @termuijs/widgets (base components) ──
 // Note: do not augment '@termuijs/widgets' here — it resolves to an untyped module.
 
@@ -161,8 +156,8 @@ export { Wizard } from './Wizard.js';
 export type { WizardStep, WizardOptions } from './Wizard.js';
 export { MultilineTextInput } from './MultilineTextInput.js';
 export type { MultilineTextInputOptions } from './MultilineTextInput.js';
-export {BasicAuthPrompt} from './BasicAuthPrompt.js';
-export type {BasicAuthCredentials,BasicAuthPromptOptions} from './BasicAuthPrompt.js'
+export { BasicAuthPrompt } from './BasicAuthPrompt.js';
+export type { BasicAuthCredentials, BasicAuthPromptOptions } from './BasicAuthPrompt.js';
 
 export { TextArea } from './TextArea.js';
 export type { TextAreaOptions } from './TextArea.js';
