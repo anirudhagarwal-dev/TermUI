@@ -324,6 +324,7 @@ describe('persistence', () => {
     const testFile = path.join(testDir, 'test-store.json')
 
     afterEach(() => {
+        vi.restoreAllMocks()
         vi.useRealTimers()
         if (fs.existsSync(testFile)) {
             try {
