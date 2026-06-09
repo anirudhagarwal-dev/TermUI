@@ -114,9 +114,7 @@ export interface StoreOptions<T> {
 }
 
 export const logger: Middleware<any> = (prevState, update, next) => {
-    console.log('Previous State:', prevState);
-    const nextState = next(update);
-    console.log('Next State:', nextState);
+    return next(update);
 };
 
 export interface Computed<U> {
